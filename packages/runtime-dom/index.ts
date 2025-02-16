@@ -15,7 +15,7 @@ export const createApp = ((...args) => {
   app.mount = (selector: string) => {
     const container = document.querySelector(selector);
     if (!container) return;
-    mount(container);
+    mount(container); // オリジナルのmountを呼び出し
   };
   return app;
 }) as CreateAppFunction<Element>;
