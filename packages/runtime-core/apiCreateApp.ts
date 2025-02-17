@@ -1,6 +1,5 @@
 import { Component } from "./component";
 import { RootRenderFunction } from "./renderer";
-import { ReactiveEffect } from "../reactivity";
 
 /**
  * Vueアプリケーションインターフェース
@@ -37,14 +36,7 @@ export function createAppAPI<HostElement>(
   return function createApp(rootComponent) {
     const app: App = {
       mount(rootContainer: HostElement) {
-        const componentRender = rootComponent.setup!();
-        const updateComponent = () => {
-          console.log('🚀 ~ updateComponent ~ rootContainer:', rootContainer);
-          const vnode = componentRender(); // setup関数の戻り値を実行し、vnode(main.tsでレンダリングしている要素)を取得
-          render(vnode, rootContainer);
-        };
-        const effect = new ReactiveEffect(updateComponent);
-        effect.run();
+        render(rootComponent, rootContainer)
       },
     };
     return app;

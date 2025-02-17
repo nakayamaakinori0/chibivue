@@ -1,4 +1,6 @@
-import { VNode } from "./vnode";
+import { VNode, Text, normalizeVNode } from "./vnode";
+import { ReactiveEffect } from "../reactivity";
+import type { Component } from "./component";
 
 export interface RendererOptions<
   HostNode = RendererNode,
@@ -9,6 +11,8 @@ export interface RendererOptions<
   createElement(type: string): HostNode;
 
   createText(text: string): HostNode;
+
+  setText(node: HostNode, text: string): void;
 
   setElementText(node: HostNode, text: string): void;
 
@@ -22,7 +26,7 @@ export interface RendererNode {
 export interface RendererElement extends RendererNode {}
 
 export type RootRenderFunction<HostElement = RendererElement> = (
-  vnode: VNode | string,
+  vnode: Component,
   container: HostElement
 ) => void;
 
@@ -31,40 +35,112 @@ export function createRenderer(options: RendererOptions) {
     patchProp: hostPatchProp,
     createElement: hostCreateElement,
     createText: hostCreateText,
+    setText: hostSetText,
     insert: hostInsert,
   } = options;
 
-  function renderVNode(vnode: VNode | string) {
-    // 文字列の場合はテキストノードを作成
-    if (typeof vnode === "string") return hostCreateText(vnode);
+  const patch = (n1: VNode | null, n2: VNode, container: RendererElement) => {
+    const { type } = n2;
+    if (type === Text) {
+      processText(n1, n2, container);
+    } else {
+      processElement(n1, n2, container);
+    }
+  };
 
-    // 要素の作成
-    const el = hostCreateElement(vnode.type);
+  const processElement = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement
+  ) => {
+    if (n1 === null) {
+      mountElement(n2, container);
+    } else {
+      patchElement(n1, n2);
+    }
+  };
 
-    // 属性の設定
-    Object.entries(vnode.props).forEach(([key, value]) => {
-      hostPatchProp(el, key, value);
-    });
+  const mountElement = (vnode: VNode, container: RendererElement) => {
+    let el: RendererElement;
+    const { type, props } = vnode;
+    el = vnode.el = hostCreateElement(type as string);
 
-    // 子要素の再起的な作成と挿入
-    for (const child of vnode.children) {
-      const childEl = renderVNode(child);
-      hostInsert(childEl, el);
+    mountChildren(vnode.children as VNode[], el); // TODO:
+
+    if (props) {
+      for (const key in props) {
+        hostPatchProp(el, key, props[key]);
+      }
     }
 
-    return el;
-  }
+    hostInsert(el, container);
+  };
+
+  const mountChildren = (children: VNode[], container: RendererElement) => {
+    for (let i = 0; i < children.length; i++) {
+      const child = (children[i] = normalizeVNode(children[i]));
+      patch(null, child, container);
+    }
+  };
+
+  const processText = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement
+  ) => {
+    if (n1 == null) {
+      hostInsert((n2.el = hostCreateText(n2.children as string)), container);
+    } else {
+      const el = (n2.el = n1.el!);
+      if (n2.children !== n1.children) {
+        hostSetText(el, n2.children as string);
+      }
+    }
+  };
+
+  const patchElement = (n1: VNode, n2: VNode) => {
+    console.log("🚀n1", n1);
+    console.log("🚀n2", n2);
+    const el = (n2.el = n1.el!);
+
+    const props = n2.props;
+
+    patchChildren(n1, n2, el);
+
+    for (const key in props) {
+      if (props[key] !== n1.props?.[key]) {
+        hostPatchProp(el, key, props[key]);
+      }
+    }
+  };
+
+  const patchChildren = (n1: VNode, n2: VNode, container: RendererElement) => {
+    const c1 = n1.children as VNode[];
+    const c2 = n2.children as VNode[];
+
+    for (let i = 0; i < c2.length; i++) {
+      const child = (c2[i] = normalizeVNode(c2[i]));
+      patch(c1[i], child, container);
+    }
+  };
 
   /**
    * @module render
-   * @param {VNode | string} vnode - setup関数から渡された値
-   * @param {RendererElement} container - #appのDOM要素
    * @returns {void}
    */
-  const render: RootRenderFunction = (vnode: VNode | string, container: RendererElement): void => {
-    while (container.firstChild) container.removeChild(container.firstChild); // 全消し処理を追加
-    const el = renderVNode(vnode);
-    hostInsert(el, container);
+  const render: RootRenderFunction = (rootComponent, container): void => {
+    const componentRender = rootComponent.setup!();
+
+    let n1: VNode | null = null;
+
+    const updateComponent = () => {
+      const n2 = componentRender();
+      patch(n1, n2, container);
+      n1 = n2;
+    };
+
+    const effect = new ReactiveEffect(updateComponent);
+    effect.run();
   };
 
   return { render };

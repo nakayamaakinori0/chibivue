@@ -23,6 +23,10 @@ export const nodeOps: Omit<RendererOptions, "patchProp"> = {
     return document.createTextNode(text);
   },
 
+  setText: (node, text) => {
+    node.nodeValue = text;
+  },
+
   /**
    * 要素のテキストコンテンツを設定する
    * @param {Node} node node - テキストを設定する対象のノード
