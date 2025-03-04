@@ -45,4 +45,8 @@ export const nodeOps: Omit<RendererOptions, "patchProp"> = {
   insert: (child: Node, parent: Node, anchor: Node | null): void => {
     parent.insertBefore(child, anchor || null);
   },
+
+  parentNode: (node) => {
+    return node.parentNode;
+  },
 };

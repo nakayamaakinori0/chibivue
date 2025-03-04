@@ -2,7 +2,7 @@ import { VNode, VNodeProps } from "./vnode";
 import { createVNode } from "./vnode";
 
 export function h(
-  type: string,
+  type: string | object, // objectを追加
   props: VNodeProps,
   children: (VNode | string)[]
 ) {

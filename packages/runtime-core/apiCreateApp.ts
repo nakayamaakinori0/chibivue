@@ -34,9 +34,10 @@ export function createAppAPI<HostElement>(
    * @param rootComponent - マウント先のDOM要素
    */
   return function createApp(rootComponent) {
+    console.log("createAppAPI");
     const app: App = {
       mount(rootContainer: HostElement) {
-        render(rootComponent, rootContainer)
+        render(rootComponent, rootContainer);
       },
     };
     return app;
